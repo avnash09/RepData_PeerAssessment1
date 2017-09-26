@@ -1,25 +1,152 @@
+# Reproducible Research: Peer Assessment 1
+
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Reproducible Research - Week 1 course project"
+author: "Avinash Anand"
+output: html_document
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=FALSE, results='hide', warning=FALSE, message=FALSE}
+library(ggplot2)
+library(scales)
+```
 
 ## Loading and preprocessing the data
+##### 1. Load the data (i.e. read.csv())
+```{r, results='markup', warning=TRUE, message=TRUE}
+url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
 
+if("downloader" %in% rownames(installed.packages()) == FALSE){
+  install.packages("downloader")  #installing the package
+  library(downloader)
+} else{
+  library(downloader)
+}
+
+#load ggplot2 package
+library(ggplot2)
+
+if(file.exists("Proj_dataFile_Week1.zip") == FALSE){
+  #downloading the source file using downloader package
+  download(url, dest = "Proj_dataFile_Week1.zip", mode = "wb")
+}
+
+if(!file.exists("activity.csv")){
+  unzip("Proj_dataFile_Week1.zip") #unzip the downloaded file  
+}
+
+#Reading the file
+actdf <- read.csv("activity.csv", stringsAsFactors = FALSE)
+```
+##### 2. Process/transform the data (if necessary) into a format suitable for your analysis
+```{r, Processing, echo=TRUE}
+actdf <- read.csv("activity.csv", stringsAsFactors = FALSE)
+```
 
 
 ## What is mean total number of steps taken per day?
+```{r}
+agg <- aggregate(steps~date, actdf, FUN = sum, na.action = na.omit)
+```
 
+##### 1. Make a histogram of the total number of steps taken each day
+```{r}
+g<- ggplot(data=agg, aes(steps))
+plt <- g + geom_histogram(fill = "firebrick", binwidth = 600) +
+  xlab("Total number of steps taken per day") +
+  ylab("Frequency")
+print(plt)
+```
 
+##### 2. Calculate and report the mean and median total number of steps taken per day
+```{r}
+StepsMean <- mean(agg$steps, na.rm = TRUE)
+StepsMeadian <- median(agg$steps, na.rm = TRUE)
+```
+* Mean: `r StepsMean`
+* Median:  `r StepsMeadian`
+
+-----
 
 ## What is the average daily activity pattern?
+```{r}
+avg <- aggregate(steps~interval, actdf, FUN = mean, na.action = na.omit)
+```
 
+##### 1. Make a time series plot
+```{r}
+g <- ggplot(avg, aes(x=interval, y=steps))
+g + geom_line() +
+    xlab("5-minute interval") +
+    ylab("average number of steps taken") 
+```
 
+##### 2. Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+```{r}
+steps <- avg[which.max(avg$steps),]
+```
+
+* Most Steps at: `r steps`
+
+----
 
 ## Imputing missing values
+##### 1. Calculate and report the total number of missing values in the dataset 
+```{r}
+numMissingValues <- sum(is.na(actdf))
+```
+
+* Number of missing values: `r numMissingValues`
+
+##### 2. Devise a strategy for filling in all of the missing values in the dataset.
+* Using the mean of the interval for filling the missing values, new dataset is created
+
+##### 3. Create a new dataset that is equal to the original dataset but with the missing data filled in.
+```{r}
+new_actdf<- actdf
+missVal<- is.na(new_actdf$steps)
+avgsteps<-tapply(new_actdf$steps, new_actdf$interval, FUN = mean, na.rm=TRUE, simplify = TRUE)
+new_actdf$steps[missVal]<-avgsteps[as.character(new_actdf$interval[missVal])]
+```
 
 
+##### 4. Make a histogram of the total number of steps taken each day 
+```{r}
+agg1 <- aggregate(steps~date, new_actdf, FUN = sum, na.action = na.omit)
+g<- ggplot(data=agg, aes(steps))
+g + geom_histogram(fill = "firebrick", binwidth = 1000) + labs(title = "Histogram of Steps per day, including missing values", x = "Steps per day", y = "Frequency")
+```
+
+##### ... and Calculate and report the mean and median total number of steps taken per day. 
+```{r}
+stepsByDayMeanImputed <- mean(agg$steps, na.rm = TRUE)
+stepsByDayMedianImputed <- median(agg$steps, na.rm = TRUE)
+```
+* Mean (Imputed): `r stepsByDayMeanImputed`
+* Median (Imputed):  `r stepsByDayMedianImputed`
+
+
+----
 
 ## Are there differences in activity patterns between weekdays and weekends?
+##### 1. Create a new factor variable in the dataset with two levels weekday and weekend indicating whether a given date is a weekday or weekend day.
+
+```{r}
+days<-c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
+actdf$day<-ifelse(is.element(weekdays(as.Date(actdf$date)), days), "Weekday", "Weekend")
+```
+
+##### 2. Make a panel plot containing a time series plot
+
+```{r}
+avg1 <- aggregate(steps~interval+day, actdf, FUN = mean, na.action = na.omit)
+g <- ggplot(data = avg1, aes(y=steps, x=interval, color = day))
+g + facet_wrap(~avg1$day, nrow=2, ncol=1) + geom_line() +
+    xlab("5-minute interval") + 
+    ylab("avarage number of steps")
+```
+
